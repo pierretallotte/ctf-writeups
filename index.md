@@ -1,1 +1,3 @@
+---
 title: CTF Write-ups
+---
