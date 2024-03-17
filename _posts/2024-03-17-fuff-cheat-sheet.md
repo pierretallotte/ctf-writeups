@@ -1,6 +1,6 @@
 ---
 title: "Fuff cheat sheet"
-date: 2024-02-04
+date: 2024-03-17
 ---
 ## Hidden pages and directories
 ```
