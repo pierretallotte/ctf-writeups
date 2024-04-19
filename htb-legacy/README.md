@@ -1,11 +1,7 @@
----
-title: "Hack The Box - Legacy"
-date: 2023-09-22
----
 ## Description
 Legacy is a fairly straightforward beginner-level machine which demonstrates the potential security risks of SMB on Windows. Only one publicly available exploit is required to obtain administrator access.
 ## Enumeration
-Let's start by an nmap scan:
+Let's start by a nmap scan:
 ```
 $nmap -sC -sV -oA scans/nmap -p- 10.129.109.83
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-09-22 20:47 CEST
@@ -92,7 +88,7 @@ Host script results:
 
 Nmap done: 1 IP address (1 host up) scanned in 62.97 seconds
 ```
-Apparently, the server has two known vulnerabilities: MS17-010 (EternalBlue that we already seen in a previous box) and MS08-67. It seems to have an exploit in MetaSploit for this vulnerability:
+Apparently, the server has two known vulnerabilities: MS17-010 (`EternalBlue` that we already saw in a previous box) and MS08-67. It seems to have an exploit in MetaSploit for this vulnerability:
 ```
 $ msfconsole
 [msf](Jobs:0 Agents:0) >> search exploit MS08-067
@@ -200,9 +196,9 @@ Apparently, yes. We get the root flag pretty easily too.
 ## Learning from other writeups
 ### rana-khalil writeup
 The writeup is available here: https://rana-khalil.gitbook.io/hack-the-box-oscp-preparation/windows-boxes/legacy-writeup-w-o-metasploit
-It uses the EternalBlue exploit. I takes note that, in the OSCP exam, Metasploit usage is restricted, it is good to know if I want to give it a try one day.
+It uses the `EternalBlue` exploit. I take note that, in the OSCP exam, `Metasploit` usage is restricted, it is good to know if I want to give it a try one day.
 ### 0xdf writeup
 The writeup can be found here: https://0xdf.gitlab.io/2019/02/21/htb-legacy.html
-First thing I note is the options used for the nmap scan. It uses `-sT`, then `-sU` for TCP and UDP scan. In my previous boxes, I did not perform any UDP scan but I think I just was lucky that any vulnerable service were using UDP. It is still good to remember. However, after reading the manual of nmap, it seems that `-sS` is preferable to `-sT` when it is possible. `-sS` perform a quick TCP SYN scan and the discovered open ports can then be used to run some scripts with `-sC` (default scripts) and `-sV` (version scripts).
+First thing I note is the options used for the nmap scan. It uses `-sT`, then `-sU` for TCP and UDP scan. In my previous boxes, I did not perform any UDP scan, but I think I just was lucky that any vulnerable service were using UDP. It is still good to remember. However, after reading the manual of nmap, it seems that `-sS` is preferable to `-sT` when it is possible. `-sS` perform a quick TCP SYN scan and the discovered open ports can then be used to run some scripts with `-sC` (default scripts) and `-sV` (version scripts).
 ## Lessons learned
 This was a very straightforward box and I have been able to apply what I have seen in previous writeups. It makes it very easy to get the flags. So, I will continue to read carefully the other writeups and take advantage of them.

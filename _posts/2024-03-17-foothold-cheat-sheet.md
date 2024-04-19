@@ -5,6 +5,8 @@ date: 2024-03-17
 ## Get pretty shell
 ```
 python3 -c 'import pty; pty.spawn("/bin/bash")'
+(Ctrl+Z)
+stty raw -echo; fg
 ```
 If Python is not installed:
 ```

